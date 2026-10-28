@@ -1,11 +1,15 @@
 
 using UnityEngine;
 using UnityEngine.InputSystem;
+using TMPro;
 
 public class DatabaseInteractionManager : MonoBehaviour
 {
     private Camera arCamera;
     private DatabaseCell selectedCell;
+
+    [Header("Educational Information UI")]
+    public TMP_Text infoText;
 
     void Start()
     {
@@ -15,6 +19,13 @@ public class DatabaseInteractionManager : MonoBehaviour
             Debug.LogError("AR Camera not found!");
         else
             Debug.Log("Using camera: " + arCamera.name);
+
+        if (infoText != null)
+        {
+            infoText.text =
+                "Tap a cell in the Student Table to learn about " +
+                "primary keys, records, and attributes.";
+        }
     }
 
     void Update()
@@ -24,6 +35,7 @@ public class DatabaseInteractionManager : MonoBehaviour
 
         Vector2 screenPosition;
 
+        // Android touchscreen
         if (Touchscreen.current != null &&
             Touchscreen.current.primaryTouch.press.wasPressedThisFrame)
         {
@@ -32,6 +44,7 @@ public class DatabaseInteractionManager : MonoBehaviour
 
             Debug.Log("ANDROID TOUCH DETECTED");
         }
+        // PC mouse
         else if (Mouse.current != null &&
                  Mouse.current.leftButton.wasPressedThisFrame)
         {
@@ -49,8 +62,6 @@ public class DatabaseInteractionManager : MonoBehaviour
 
         if (Physics.Raycast(ray, out RaycastHit hit))
         {
-            Debug.Log("Hit object: " + hit.collider.name);
-
             DatabaseCell cell =
                 hit.collider.GetComponentInParent<DatabaseCell>();
 
@@ -62,16 +73,39 @@ public class DatabaseInteractionManager : MonoBehaviour
                 cell.SelectCell();
                 selectedCell = cell;
 
+                ShowCellInformation(cell);
+
                 Debug.Log("CELL SELECTED: " + cell.cellName);
             }
-            else
-            {
-                Debug.LogWarning("Hit object has no DatabaseCell.");
-            }
+        }
+    }
+
+    void ShowCellInformation(DatabaseCell cell)
+    {
+        if (infoText == null)
+        {
+            Debug.LogWarning("InfoText is not assigned!");
+            return;
+        }
+
+        string cellName = cell.cellName;
+
+        if (cell.isPrimaryKey)
+        {
+            infoText.text =
+                "Selected: " + cellName + "\n\n" +
+                "PRIMARY KEY\n" +
+                "A primary key uniquely identifies each record " +
+                "in a relational database table.";
         }
         else
         {
-            Debug.LogWarning("Touch raycast missed all colliders.");
+            infoText.text =
+                "Selected: " + cellName + "\n\n" +
+                "RELATIONAL DATABASE\n" +
+                "This is a cell in the Students table. " +
+                "Each row represents a student record, " +
+                "and each column represents an attribute.";
         }
     }
 }
