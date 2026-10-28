@@ -4,55 +4,64 @@ using UnityEngine.InputSystem;
 
 public class DatabaseInteractionManager : MonoBehaviour
 {
-    private Camera testCamera;
+    private Camera mainCamera;
 
     void Start()
     {
-        testCamera = Camera.main;
+        mainCamera = Camera.main;
 
-        if (testCamera == null)
-            Debug.LogError("No MainCamera found!");
-        else
-            Debug.Log("Camera found: " + testCamera.name);
+        if (mainCamera == null)
+        {
+            Debug.LogError("Main Camera not found!");
+        }
     }
 
     void Update()
     {
-        if (Mouse.current == null)
+        if (mainCamera == null)
             return;
 
-        if (Mouse.current.leftButton.wasPressedThisFrame)
+        Vector2 screenPosition;
+
+        // Android touchscreen
+        if (Touchscreen.current != null &&
+            Touchscreen.current.primaryTouch.press.wasPressedThisFrame)
         {
-            Debug.Log("Mouse clicked!");
+            screenPosition =
+                Touchscreen.current.primaryTouch.position.ReadValue();
+        }
+        // PC mouse
+        else if (Mouse.current != null &&
+                 Mouse.current.leftButton.wasPressedThisFrame)
+        {
+            screenPosition = Mouse.current.position.ReadValue();
+        }
+        else
+        {
+            return;
+        }
 
-            if (testCamera == null)
-                return;
+        Ray ray = mainCamera.ScreenPointToRay(screenPosition);
 
-            Vector2 mousePos = Mouse.current.position.ReadValue();
-            Ray ray = testCamera.ScreenPointToRay(mousePos);
+        if (Physics.Raycast(ray, out RaycastHit hit))
+        {
+            Debug.Log("Touched object: " + hit.collider.name);
 
-            if (Physics.Raycast(ray, out RaycastHit hit))
+            DatabaseCell cell =
+                hit.collider.GetComponent<DatabaseCell>();
+
+            if (cell != null)
             {
-                Debug.Log("Ray hit: " + hit.collider.name);
-
-                DatabaseCell cell =
-                    hit.collider.GetComponent<DatabaseCell>();
-
-                if (cell != null)
-                {
-                    cell.SelectCell();
-                }
-                else
-                {
-                    Debug.LogWarning(
-                        "Object has no DatabaseCell script."
-                    );
-                }
+                cell.SelectCell();
             }
             else
             {
-                Debug.LogWarning("Ray hit nothing!");
+                Debug.Log("Object has no DatabaseCell script.");
             }
+        }
+        else
+        {
+            Debug.Log("No database cell detected.");
         }
     }
 }

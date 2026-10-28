@@ -1,0 +1,2 @@
+C:\Users\Svindu\Desktop\Game\AR_SQL_Explorer\Library\Bee\Android\Prj\IL2CPP\Gradle\unityLibrary\src\main\cpp\CMakeLists.txt
+C:\Users\Svindu\Desktop\Game\AR_SQL_Explorer\Library\Bee\Android\Prj\IL2CPP\Gradle\unityLibrary\src\main\cpp\GameActivity\CMakeLists.txt
