@@ -1,0 +1,5 @@
+{
+    "name": "ARSQLExplorer.SQLJoin.Views",
+    "rootNamespace": "ARSQLExplorer.SQLJoin",
+    "references": ["ARSQLExplorer.SQLJoin", "Unity.TextMeshPro", "UnityEngine.UI"]
+}

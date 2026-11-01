@@ -1,0 +1,7 @@
+{
+    "name": "ARSQLExplorer.SQLJoin.EditorTests",
+    "rootNamespace": "ARSQLExplorer.SQLJoin.Tests",
+    "references": ["ARSQLExplorer.SQLJoin"],
+    "includePlatforms": ["Editor"],
+    "optionalUnityReferences": ["TestAssemblies"]
+}

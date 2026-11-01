@@ -1,4 +1,7 @@
 ﻿<Solution>
+  <Project Path="ARSQLExplorer.SQLJoin.csproj" />
+  <Project Path="ARSQLExplorer.SQLJoin.Views.csproj" />
   <Project Path="Assembly-CSharp.csproj" />
+  <Project Path="ARSQLExplorer.SQLJoin.EditorTests.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
 </Solution>
