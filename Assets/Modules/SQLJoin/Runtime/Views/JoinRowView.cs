@@ -12,7 +12,7 @@ namespace ARSQLExplorer.SQLJoin
 
         public void Build(IReadOnlyList<string> values, IReadOnlyList<float> widths,
             int primaryKeyColumn, bool header, Material material, TMP_FontAsset font,
-            StudentRecord student = null, MarkRecord mark = null)
+            StudentRecord student = null, MarkRecord mark = null, bool[] nullCells = null)
         {
             Student = student;
             Mark = mark;
@@ -31,6 +31,8 @@ namespace ARSQLExplorer.SQLJoin
                 Color color = header ? new Color(0.08f, 0.24f, 0.36f) : new Color(0.83f, 0.9f, 0.94f);
                 if (i == primaryKeyColumn)
                     color = header ? new Color(0.5f, 0.32f, 0.06f) : new Color(1f, 0.87f, 0.52f);
+                if (!header && nullCells != null && nullCells[i])
+                    color = new Color(0.55f, 0.59f, 0.63f);
                 properties.SetColor("_BaseColor", color);
                 properties.SetColor("_Color", color);
                 renderer.SetPropertyBlock(properties);
