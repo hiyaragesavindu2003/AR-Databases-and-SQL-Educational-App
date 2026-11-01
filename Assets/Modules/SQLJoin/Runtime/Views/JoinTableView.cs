@@ -82,17 +82,24 @@ namespace ARSQLExplorer.SQLJoin
                 widths, 0, true, primaryKey: -1);
             foreach (var result in results)
             {
-                bool noStudent = result.Student == null;
-                bool noMark = result.Mark == null;
-                AddRow(new[] {
-                    noStudent ? "NULL" : Number(result.Student.StudentId),
-                    noStudent ? "NULL" : result.Student.Name,
-                    noMark ? "NULL" : Number(result.Mark.StudentId),
-                    noMark ? "NULL" : result.Mark.Subject,
-                    noMark ? "NULL" : Number(result.Mark.Score)
-                }, widths, rows.Count + 1, false, result.Student, result.Mark, -1,
-                    new[] { noStudent, noStudent, noMark, noMark, noMark });
+                AppendResult(result);
             }
+        }
+
+        public void AppendResult(JoinResult result)
+        {
+            if (!EnsureResources()) return;
+            float[] widths = { 2.3f, 1.6f, 2.3f, 1.8f, 1f };
+            bool noStudent = result.Student == null;
+            bool noMark = result.Mark == null;
+            AddRow(new[] {
+                noStudent ? "NULL" : Number(result.Student.StudentId),
+                noStudent ? "NULL" : result.Student.Name,
+                noMark ? "NULL" : Number(result.Mark.StudentId),
+                noMark ? "NULL" : result.Mark.Subject,
+                noMark ? "NULL" : Number(result.Mark.Score)
+            }, widths, rows.Count + 1, false, result.Student, result.Mark, -1,
+                new[] { noStudent, noStudent, noMark, noMark, noMark });
         }
 
         private void AddRow(string[] values, float[] widths, int index, bool header,

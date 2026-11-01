@@ -9,6 +9,42 @@ namespace ARSQLExplorer.SQLJoin
         public StudentRecord Student { get; private set; }
         public MarkRecord Mark { get; private set; }
         public bool IsHeader { get; private set; }
+        private readonly List<Renderer> cells = new List<Renderer>();
+        private readonly List<Color> originalColors = new List<Color>();
+        private MaterialPropertyBlock highlightProperties;
+
+        private void Awake()
+        {
+            highlightProperties = new MaterialPropertyBlock();
+        }
+
+        public void Highlight(Color color)
+        {
+            foreach (var cell in cells) SetColor(cell, color);
+        }
+
+        public void RestoreColors()
+        {
+            for (int i = 0; i < cells.Count; i++) SetColor(cells[i], originalColors[i]);
+        }
+
+        public Vector3 KeyConnectionPoint(int column)
+        {
+            var bounds = cells[column].bounds;
+            // Connect at the upper edge, in front of the cube and text.
+            return new Vector3(bounds.center.x, bounds.max.y - 0.025f, bounds.min.z - 0.05f);
+        }
+
+        private void SetColor(Renderer cell, Color color)
+        {
+            if (cell == null) return;
+            // Also recover after an Editor domain reload of an existing row.
+            if (highlightProperties == null) highlightProperties = new MaterialPropertyBlock();
+            cell.GetPropertyBlock(highlightProperties);
+            highlightProperties.SetColor("_BaseColor", color);
+            highlightProperties.SetColor("_Color", color);
+            cell.SetPropertyBlock(highlightProperties);
+        }
 
         public void Build(IReadOnlyList<string> values, IReadOnlyList<float> widths,
             int primaryKeyColumn, bool header, Material material, TMP_FontAsset font,
@@ -36,6 +72,8 @@ namespace ARSQLExplorer.SQLJoin
                 properties.SetColor("_BaseColor", color);
                 properties.SetColor("_Color", color);
                 renderer.SetPropertyBlock(properties);
+                cells.Add(renderer);
+                originalColors.Add(color);
 
                 var label = CreateLabel(transform, values[i], font, widths[i] - 0.1f, 0.53f,
                     header ? Color.white : new Color(0.03f, 0.08f, 0.12f));

@@ -690,6 +690,8 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier: ARSQLExplorer.SQLJoin.Views::ARSQLExplorer.SQLJoin.SQLJoinController
   resultTable: {fileID: 5032}
+  studentsTable: {fileID: 5012}
+  marksTable: {fileID: 5022}
   font: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
