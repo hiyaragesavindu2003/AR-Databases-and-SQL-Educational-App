@@ -30,9 +30,9 @@ namespace ARSQLExplorer.SQLJoin
 
         public Vector3 KeyConnectionPoint(int column)
         {
-            var bounds = cells[column].bounds;
-            // Connect at the upper edge, in front of the cube and text.
-            return new Vector3(bounds.center.x, bounds.max.y - 0.025f, bounds.min.z - 0.05f);
+            // Unit cube coordinates: upper front edge, offset beyond the label.
+            // Transform the point with the cell so rotation and scale remain valid.
+            return cells[column].transform.TransformPoint(new Vector3(0, 0.46f, -0.92f));
         }
 
         private void SetColor(Renderer cell, Color color)

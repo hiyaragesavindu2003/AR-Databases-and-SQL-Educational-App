@@ -11,14 +11,23 @@ namespace ARSQLExplorer.SQLJoin
         [SerializeField] private SourceTable source;
         [SerializeField] private TMP_FontAsset font;
         private Material cellMaterial;
+        public bool IsInitialized { get; private set; }
         private readonly List<JoinRowView> rows = new List<JoinRowView>();
         public IReadOnlyList<JoinRowView> Rows => rows.AsReadOnly();
 
         private void Start()
         {
-            if (source == SourceTable.Result) return;
-            if (!EnsureResources()) return;
-            BuildSource();
+            Initialize();
+        }
+
+        public bool Initialize()
+        {
+            if (IsInitialized) return true;
+            if (!EnsureResources()) return false;
+            if (source == SourceTable.Result) ShowResults(new JoinResult[0]);
+            else BuildSource();
+            IsInitialized = true;
+            return true;
         }
 
         private bool EnsureResources()
@@ -66,6 +75,7 @@ namespace ARSQLExplorer.SQLJoin
         public void ShowResults(IReadOnlyList<JoinResult> results)
         {
             if (!EnsureResources()) return;
+            IsInitialized = true;
             // Hide immediately; Destroy completes at the end of the frame.
             foreach (Transform child in transform)
             {

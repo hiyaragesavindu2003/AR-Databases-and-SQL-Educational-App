@@ -1,0 +1,5 @@
+{
+    "name": "ARSQLExplorer.SQLJoin.AR",
+    "rootNamespace": "ARSQLExplorer.SQLJoin",
+    "references": ["ARSQLExplorer.SQLJoin.Views", "Unity.XR.ARFoundation", "Unity.XR.ARSubsystems", "Unity.XR.CoreUtils", "Unity.InputSystem", "UnityEngine.UI"]
+}

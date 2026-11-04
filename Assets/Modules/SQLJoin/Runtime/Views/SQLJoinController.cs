@@ -12,6 +12,8 @@ namespace ARSQLExplorer.SQLJoin
         [SerializeField] private JoinTableView studentsTable;
         [SerializeField] private JoinTableView marksTable;
         [SerializeField] private TMP_FontAsset font;
+        [SerializeField, Min(0.1f)] private float connectionDrawSeconds = 1.2f;
+        [SerializeField, Min(0f)] private float resultHoldSeconds = 0.8f;
         private TextMeshProUGUI status;
         private TextMeshProUGUI query;
         private TextMeshProUGUI explanation;
@@ -23,6 +25,13 @@ namespace ARSQLExplorer.SQLJoin
         private bool animating;
         private LineRenderer connection;
         private Material connectionMaterial;
+        private JoinRowView connectionStudent;
+        private JoinRowView connectionMark;
+        private float connectionProgress;
+        private Transform connectionsRoot;
+        private bool uiInitialized;
+        private Button resetButton;
+        public bool IsBound => studentsTable != null && marksTable != null && resultTable != null && playback != null;
         private static readonly Color Examined = new Color(0.25f, 0.55f, 1f);
         private static readonly Color Matched = new Color(0.3f, 0.85f, 0.4f);
         private static readonly Color Unmatched = new Color(1f, 0.65f, 0.2f);
@@ -31,11 +40,21 @@ namespace ARSQLExplorer.SQLJoin
 
         private void Start()
         {
+            if (!InitializeUI()) return;
+            if (IsBound) return;
+            if (studentsTable != null && marksTable != null && resultTable != null)
+                BindViews(studentsTable, marksTable, resultTable, resultTable.transform.parent);
+            else UpdateStatus();
+        }
+
+        private bool InitializeUI()
+        {
+            if (uiInitialized) return true;
             if (font == null) font = TMP_Settings.defaultFontAsset;
-            if (resultTable == null || studentsTable == null || marksTable == null || font == null)
+            if (font == null || GetComponent<Canvas>() == null || GetComponent<CanvasScaler>() == null)
             {
-                Debug.LogError("Assign the three JOIN tables and TMP font to SQLJoinController.", this);
-                return;
+                Debug.LogError("JOIN UI requires a Canvas, CanvasScaler and TMP font.", this);
+                return false;
             }
             GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
             var scaler = GetComponent<CanvasScaler>();
@@ -67,7 +86,7 @@ namespace ARSQLExplorer.SQLJoin
             }
             nextButton = ActionButton("Next Step", 300, NextStep);
             showAllButton = ActionButton("Show All", 740, ShowAll);
-            ActionButton("Reset", 1180, ResetPlayback);
+            resetButton = ActionButton("Reset", 1180, ResetPlayback);
             var legend = Label(transform, "Highlight legend", 20);
             legend.text = "<color=#408CFF>Blue: examining</color>  <color=#4DD966>Green: match</color>  <color=#FFA633>Amber: unmatched</color>";
             Place(legend.rectTransform, 1630, -92, 430, 46);
@@ -88,11 +107,53 @@ namespace ARSQLExplorer.SQLJoin
             explanation.rectTransform.anchorMax = Vector2.one;
             explanation.rectTransform.offsetMin = new Vector2(40, 2);
             explanation.rectTransform.offsetMax = new Vector2(-40, -2);
-            SelectJoin(JoinType.Inner);
+            uiInitialized = true;
+            UpdateStatus();
+            return true;
+        }
+
+        public bool BindVisualization(SQLJoinVisualization visualization)
+        {
+            if (visualization == null || !InitializeUI() || !visualization.Initialize()) return false;
+            return BindViews(visualization.Students, visualization.Marks, visualization.Result, visualization.Connections);
+        }
+
+        private bool BindViews(JoinTableView students, JoinTableView marks, JoinTableView result, Transform connections)
+        {
+            if (students == null || marks == null || result == null || connections == null ||
+                students == marks || students == result || marks == result) return false;
+            if (!students.Initialize() || !marks.Initialize() || !result.Initialize()) return false;
+            UnbindVisualization();
+            studentsTable = students;
+            marksTable = marks;
+            resultTable = result;
+            connectionsRoot = connections;
+            playback = new JoinPlayback(JoinCalculator.Calculate(JoinDemoData.Students, JoinDemoData.Marks, selectedType));
+            SelectJoin(selectedType);
+            return true;
+        }
+
+        public void UnbindVisualization()
+        {
+            CancelStep();
+            if (resultTable != null && resultTable.IsInitialized) resultTable.ShowResults(new JoinResult[0]);
+            if (connection != null)
+            {
+                connection.gameObject.SetActive(false);
+                Destroy(connection.gameObject);
+            }
+            if (connectionMaterial != null) Destroy(connectionMaterial);
+            connection = null;
+            connectionMaterial = null;
+            connectionsRoot = null;
+            studentsTable = marksTable = resultTable = null;
+            playback = null;
+            if (uiInitialized) UpdateStatus();
         }
 
         public void SelectJoin(JoinType type)
         {
+            if (!uiInitialized || !IsBound) return;
             CancelStep();
             selectedType = type;
             playback = new JoinPlayback(JoinCalculator.Calculate(JoinDemoData.Students, JoinDemoData.Marks, type));
@@ -107,7 +168,7 @@ namespace ARSQLExplorer.SQLJoin
 
         public void NextStep()
         {
-            if (playback == null || animating || !playback.CanAdvance) return;
+            if (!IsBound || animating || !playback.CanAdvance) return;
             ClearHighlights();
             animating = true;
             UpdateStatus();
@@ -129,18 +190,23 @@ namespace ARSQLExplorer.SQLJoin
             if (mark != null) mark.Highlight(match ? Matched : Unmatched);
             if (match && student != null && mark != null && EnsureConnection())
             {
-                Vector3 from = student.KeyConnectionPoint(0);
-                Vector3 to = mark.KeyConnectionPoint(1);
-                connection.SetPosition(0, from);
-                connection.SetPosition(1, from);
+                connectionStudent = student;
+                connectionMark = mark;
+                connectionProgress = 0;
+                UpdateConnection();
                 connection.enabled = true;
+                explanation.text = "Student_ID " + id + " matches. Connecting " + result.Student.Name
+                    + " to Mark_ID " + result.Mark.MarkId + " (" + result.Mark.Subject + ").";
                 float elapsed = 0;
-                while (elapsed < 0.25f)
+                float duration = Mathf.Max(0.1f, connectionDrawSeconds);
+                while (elapsed < duration)
                 {
-                    elapsed += Time.unscaledDeltaTime;
-                    connection.SetPosition(1, Vector3.Lerp(from, to, Mathf.Clamp01(elapsed / 0.25f)));
                     yield return null;
+                    elapsed += Time.unscaledDeltaTime;
+                    connectionProgress = Mathf.SmoothStep(0, 1, Mathf.Clamp01(elapsed / duration));
                 }
+                connectionProgress = 1;
+                UpdateConnection();
             }
 
             // Commit only after the animation; cancelled steps never advance the cursor.
@@ -153,6 +219,8 @@ namespace ARSQLExplorer.SQLJoin
                         + Names[(int)selectedType] + " keeps this student; Marks columns are NULL."
                     : "Marks.Student_ID " + id + " (Mark_ID " + result.Mark.MarkId + ") has no Students match. "
                         + Names[(int)selectedType] + " keeps this mark; Students columns are NULL.";
+            // Keep the completed relationship visible before enabling another step.
+            yield return new WaitForSecondsRealtime(Mathf.Max(0, resultHoldSeconds));
             animating = false;
             stepAnimation = null;
             UpdateStatus();
@@ -160,7 +228,7 @@ namespace ARSQLExplorer.SQLJoin
 
         public void ShowAll()
         {
-            if (playback == null) return;
+            if (!IsBound) return;
             CancelStep();
             playback.ShowAll();
             resultTable.ShowResults(playback.Results);
@@ -171,7 +239,7 @@ namespace ARSQLExplorer.SQLJoin
 
         public void ResetPlayback()
         {
-            if (playback == null) return;
+            if (!IsBound) return;
             CancelStep();
             playback.Reset();
             resultTable.ShowResults(new JoinResult[0]);
@@ -181,6 +249,17 @@ namespace ARSQLExplorer.SQLJoin
 
         private void UpdateStatus()
         {
+            if (!uiInitialized) return;
+            foreach (var button in buttons) button.interactable = IsBound;
+            resetButton.interactable = IsBound;
+            if (!IsBound)
+            {
+                status.text = "Waiting for SQL JOIN visualization.";
+                query.text = "";
+                explanation.text = "Place or bind a visualization to begin.";
+                nextButton.interactable = showAllButton.interactable = false;
+                return;
+            }
             status.text = Names[(int)selectedType] + "  |  Result rows: " + playback.ShownCount + " / " + playback.Results.Count
                 + (animating ? "  |  Examining..." : playback.CanAdvance ? "  |  Ready for Next Step" : "  |  Complete");
             nextButton.interactable = !animating && playback.CanAdvance;
@@ -202,6 +281,26 @@ namespace ARSQLExplorer.SQLJoin
             if (marksTable != null)
                 foreach (var row in marksTable.Rows) row.RestoreColors();
             if (connection != null) connection.enabled = false;
+            connectionStudent = null;
+            connectionMark = null;
+            connectionProgress = 0;
+        }
+
+        private void LateUpdate()
+        {
+            if (connection != null && connection.enabled) UpdateConnection();
+        }
+
+        private void UpdateConnection()
+        {
+            if (connectionStudent == null || connectionMark == null) return;
+            Vector3 from = connectionStudent.KeyConnectionPoint(0);
+            Vector3 to = connectionMark.KeyConnectionPoint(1);
+            connection.SetPosition(0, from);
+            connection.SetPosition(1, Vector3.Lerp(from, to, connectionProgress));
+            // LineRenderer width is world-space; scale it with the visualization.
+            var scale = connection.transform.lossyScale;
+            connection.widthMultiplier = 0.035f * Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.y));
         }
 
         private void CancelStep()
@@ -222,11 +321,11 @@ namespace ARSQLExplorer.SQLJoin
             if (connectionMaterial.HasProperty("_BaseColor")) connectionMaterial.SetColor("_BaseColor", Matched);
             if (connectionMaterial.HasProperty("_Color")) connectionMaterial.SetColor("_Color", Matched);
             connection = new GameObject("Matching Student_ID Connection").AddComponent<LineRenderer>();
-            connection.transform.SetParent(resultTable.transform.parent, false);
+            connection.transform.SetParent(connectionsRoot, false);
             connection.sharedMaterial = connectionMaterial;
             connection.useWorldSpace = true;
             connection.positionCount = 2;
-            connection.startWidth = connection.endWidth = 0.035f;
+            connection.startWidth = connection.endWidth = 1f;
             connection.startColor = connection.endColor = Matched;
             connection.enabled = false;
             return true;
