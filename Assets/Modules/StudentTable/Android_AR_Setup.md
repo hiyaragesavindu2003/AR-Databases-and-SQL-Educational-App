@@ -1,0 +1,11 @@
+# Module 1: Student Table Android AR
+
+Open Assets/Scenes/StudentTable_AR.unity. Use the dedicated StudentTable_AR_Android build profile when you choose to test on a device. The profile overrides its scene list to this scene only and defaults to the existing SQLJoin_AR_Mobile quality level. That level/pipeline/renderer are reused read-only; original profiles and global defaults are unchanged.
+
+The visualization-only prefab preserves original cells, labels, colliders, primary-key metadata and URP Lit materials. It removes both interaction-manager children and TestCamera. A wrapper centers the placement pivot at the cell base. Scale defaults to 0.65, approximately 0.61 m total width. The table lies flat on the detected surface, with its header oriented away from the viewer for overhead reading.
+
+One StudentTableARPlacement waits for session/plane tracking, ignores UI touches, creates an anchor asynchronously and spawns exactly one table. Failed placement cleans up and allows retry; no automatic repositioning is implemented. State/stage diagnostics use [StudentTableARPlacement]. One StudentTableARInteraction owns the scene InfoText reference, restricts selection to the placed table, ignores UI and pauses selection while session tracking is unavailable. Educational strings and existing DatabaseCell highlighting are preserved. A private UI text material ensures readability without editing the shared font.
+
+Scripts intentionally use Assembly-CSharp because they reuse the original DatabaseCell component, which belongs to that assembly. No original scripts were modified.
+
+Manual Unity checks: import new assets and inspect Console; confirm one MainCamera and EventSystem; verify prefab references, lit materials and light; ensure profile has only StudentTable_AR enabled at index 0 and SQLJoin_AR_Mobile default; leave global default Mobile unchanged. Device checks: camera feed, horizontal surface placement, repeated taps, failure/retry, overhead label orientation, cell highlights and InfoText, UI touch filtering, temporary tracking loss and app resume. Verify shader/text readability and screen safe areas on the target Samsung device. Full tracking-loss suspension/relocalization and responsive UI redesign are not implemented. No APK was built or deployed as part of this change.

@@ -14,6 +14,12 @@ namespace ARSQLExplorer.SQLJoin
         public JoinTableView Result => result;
         public Transform Connections => connections;
 
+        public bool SetTheme(JoinTableTheme theme)
+        {
+            return students != null && marks != null && result != null
+                && students.SetTheme(theme) && marks.SetTheme(theme) && result.SetTheme(theme);
+        }
+
         public bool Initialize()
         {
             if (students == null || marks == null || result == null || connections == null ||

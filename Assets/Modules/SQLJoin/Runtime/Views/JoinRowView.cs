@@ -48,7 +48,8 @@ namespace ARSQLExplorer.SQLJoin
 
         public void Build(IReadOnlyList<string> values, IReadOnlyList<float> widths,
             int primaryKeyColumn, bool header, Material material, TMP_FontAsset font,
-            StudentRecord student = null, MarkRecord mark = null, bool[] nullCells = null)
+            StudentRecord student = null, MarkRecord mark = null, bool[] nullCells = null,
+            JoinTableTheme theme = null, int rowIndex = 0, Material textMaterial = null)
         {
             Student = student;
             Mark = mark;
@@ -69,6 +70,19 @@ namespace ARSQLExplorer.SQLJoin
                     color = header ? new Color(0.5f, 0.32f, 0.06f) : new Color(1f, 0.87f, 0.52f);
                 if (!header && nullCells != null && nullCells[i])
                     color = new Color(0.55f, 0.59f, 0.63f);
+                Color textColor = header ? Color.white : new Color(0.03f, 0.08f, 0.12f);
+                if (theme != null)
+                {
+                    color = header ? theme.header : (rowIndex % 2 == 0 ? theme.alternateRow : theme.row);
+                    textColor = header ? theme.headerText : theme.cellText;
+                    // All column headers stay teal; existing key data cells retain their semantics.
+                    if (!header && i == primaryKeyColumn)
+                    {
+                        color = theme.primaryKey;
+                        textColor = theme.primaryKeyText;
+                    }
+                    if (!header && nullCells != null && nullCells[i]) color = theme.nullCell;
+                }
                 properties.SetColor("_BaseColor", color);
                 properties.SetColor("_Color", color);
                 renderer.SetPropertyBlock(properties);
@@ -76,7 +90,8 @@ namespace ARSQLExplorer.SQLJoin
                 originalColors.Add(color);
 
                 var label = CreateLabel(transform, values[i], font, widths[i] - 0.1f, 0.53f,
-                    header ? Color.white : new Color(0.03f, 0.08f, 0.12f));
+                    textColor);
+                if (textMaterial != null) label.fontSharedMaterial = textMaterial;
                 label.transform.localPosition = new Vector3(x + widths[i] / 2, 0, -0.075f);
                 label.fontStyle = header ? FontStyles.Bold : FontStyles.Normal;
                 label.fontSize = header ? 2.5f : 3f;

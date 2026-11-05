@@ -778,10 +778,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 795ec52c471242f18ec3b30408ed7c60, type: 3}
   m_Name:
   m_EditorClassIdentifier: ARSQLExplorer.SQLJoin.Views::ARSQLExplorer.SQLJoin.SQLJoinController
+  useMobileLayout: 1
+  arTableTheme: {fileID: 11400000, guid: b30db3bd2b424562940847eb35cb2ea4, type: 2}
   resultTable: {fileID: 0}
   studentsTable: {fileID: 0}
   marksTable: {fileID: 0}
   font: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  connectionMaterialTemplate: {fileID: 2100000, guid: 998f0a2f86944554adc6be7e1768c837, type: 2}
 --- !u!1 &8000
 GameObject:
   m_ObjectHideFlags: 0

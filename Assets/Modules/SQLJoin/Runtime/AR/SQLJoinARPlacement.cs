@@ -27,6 +27,8 @@ namespace ARSQLExplorer.SQLJoin
         private ARAnchor placedAnchor;
         private SQLJoinVisualization placedVisualization;
         private int operationVersion;
+        private string lastReadiness;
+        private const string LogPrefix = "[SQLJoinARPlacement] ";
         private string feedback = "Move your device to detect a horizontal surface, then tap to place.";
 
         private void Start()
@@ -41,29 +43,66 @@ namespace ARSQLExplorer.SQLJoin
 
         private void Update()
         {
-            if (State != PlacementState.Scanning || ARSession.state != ARSessionState.SessionTracking ||
-                anchorManager.subsystem == null || !anchorManager.subsystem.running ||
-                !raycastManager.isActiveAndEnabled || !planeManager.isActiveAndEnabled) return;
+            bool anchorReady = anchorManager.subsystem != null && anchorManager.subsystem.running;
+            string readiness = ARSession.state + "; anchorReady=" + anchorReady
+                + "; raycastEnabled=" + raycastManager.isActiveAndEnabled
+                + "; planesEnabled=" + planeManager.isActiveAndEnabled;
+            if (readiness != lastReadiness)
+            {
+                Debug.Log(LogPrefix + "Readiness: " + readiness, this);
+                lastReadiness = readiness;
+            }
             var touch = Touchscreen.current;
             if (touch == null || !touch.primaryTouch.press.wasPressedThisFrame) return;
             Vector2 position = touch.primaryTouch.position.ReadValue();
+            Debug.Log(LogPrefix + "Touch at " + position + "; state=" + State, this);
+            if (State != PlacementState.Scanning || ARSession.state != ARSessionState.SessionTracking ||
+                !anchorReady || !raycastManager.isActiveAndEnabled || !planeManager.isActiveAndEnabled)
+            {
+                Debug.Log(LogPrefix + "Touch ignored: " + State + "; " + readiness, this);
+                return;
+            }
             // Explicit UI raycast avoids depending on the UI module's Update order.
-            if (EventSystem.current == null) return;
+            if (EventSystem.current == null)
+            {
+                feedback = "Input: EventSystem missing.";
+                Debug.LogWarning(LogPrefix + feedback, this);
+                return;
+            }
             var pointer = new PointerEventData(EventSystem.current) { position = position };
             uiHits.Clear();
             EventSystem.current.RaycastAll(pointer, uiHits);
-            if (uiHits.Count != 0) return;
-            if (!raycastManager.Raycast(position, hits, TrackableType.PlaneWithinPolygon)) return;
+            if (uiHits.Count != 0)
+            {
+                Debug.Log(LogPrefix + "UI touch rejected: " + uiHits[0].gameObject.name, this);
+                return;
+            }
+            if (!raycastManager.Raycast(position, hits, TrackableType.PlaneWithinPolygon))
+            {
+                feedback = "Surface: no plane hit. Scan slowly and retry.";
+                Debug.Log(LogPrefix + "AR raycast miss; detected planes=" + planeManager.trackables.count, this);
+                return;
+            }
+            Debug.Log(LogPrefix + "AR raycast hits=" + hits.Count, this);
             foreach (var hit in hits)
             {
                 var plane = planeManager.GetPlane(hit.trackableId);
+                Debug.Log(LogPrefix + "Plane " + hit.trackableId + ": " + (plane == null ? "missing"
+                    : "alignment=" + plane.alignment + "; tracking=" + plane.trackingState
+                        + "; upDot=" + Vector3.Dot(plane.transform.up, Vector3.up)), this);
                 if (plane == null || plane.alignment != PlaneAlignment.HorizontalUp ||
                     plane.trackingState != TrackingState.Tracking ||
                     Vector3.Dot(plane.transform.up, Vector3.up) < 0.9f) continue;
                 State = PlacementState.PlacementPending;
+                Debug.Log(LogPrefix + "Scanning -> PlacementPending; pose=" + hit.pose, this);
                 feedback = "Placing SQL JOIN visualization...";
                 PlaceAsync(hit.pose, ++operationVersion);
                 break;
+            }
+            if (State == PlacementState.Scanning)
+            {
+                feedback = "Surface: no tracked upward horizontal plane.";
+                Debug.Log(LogPrefix + "All raycast hits rejected by plane filter.", this);
             }
         }
 
@@ -72,17 +111,29 @@ namespace ARSQLExplorer.SQLJoin
             ARAnchor anchor = null;
             SQLJoinVisualization visualization = null;
             bool committed = false;
+            string stage = "Anchor";
             try
             {
+                Debug.Log(LogPrefix + "Attempt " + version + ": anchor creation start.", this);
                 var result = await anchorManager.TryAddAnchorAsync(pose);
-                anchor = result.value;
-                if (!result.status.IsSuccess() || anchor == null)
+                Debug.Log(LogPrefix + "Attempt " + version + ": anchor status=" + result.status, this);
+                if (!result.status.IsSuccess())
                     throw new InvalidOperationException("AR anchor creation failed: " + result.status);
-                if (this == null || !isActiveAndEnabled || version != operationVersion) return;
+                anchor = result.value;
+                if (anchor == null) throw new InvalidOperationException("Anchor success returned a null anchor.");
+                if (this == null || !isActiveAndEnabled || version != operationVersion)
+                {
+                    Debug.Log(LogPrefix + "Attempt " + version + ": completion cancelled; cleaning anchor.");
+                    return;
+                }
+                stage = "Tracking";
                 if (ARSession.state != ARSessionState.SessionTracking)
                     throw new InvalidOperationException("Tracking was lost while creating the anchor. Try again.");
 
+                stage = "Prefab";
+                Debug.Log(LogPrefix + "Attempt " + version + ": instantiating prefab under anchor " + anchor.trackableId, this);
                 visualization = Instantiate(visualizationPrefab, anchor.transform, false);
+                Debug.Log(LogPrefix + "Attempt " + version + ": prefab instantiated.", this);
                 visualization.transform.localPosition = Vector3.zero;
                 visualization.transform.localScale = Vector3.one * Mathf.Max(0.01f, visualizationScale);
                 // Text faces local -Z; point that side toward the camera, keeping the board upright.
@@ -91,21 +142,27 @@ namespace ARSQLExplorer.SQLJoin
                     awayFromCamera = Vector3.ProjectOnPlane(arCamera.transform.forward, Vector3.up);
                 if (awayFromCamera.sqrMagnitude < 0.0001f) awayFromCamera = Vector3.forward;
                 visualization.transform.rotation = Quaternion.LookRotation(awayFromCamera, Vector3.up);
-                if (!controller.BindVisualization(visualization))
+                stage = "Binding";
+                Debug.Log(LogPrefix + "Attempt " + version + ": BindVisualization start.", this);
+                bool bound = controller.BindVisualization(visualization);
+                Debug.Log(LogPrefix + "Attempt " + version + ": BindVisualization=" + bound, this);
+                if (!bound)
                     throw new InvalidOperationException("SQL JOIN visualization binding failed.");
 
                 placedAnchor = anchor;
                 placedVisualization = visualization;
                 State = PlacementState.Placed;
                 committed = true;
+                Debug.Log(LogPrefix + "Attempt " + version + ": PlacementPending -> Placed.", this);
             }
             catch (Exception exception)
             {
                 if (this != null)
                 {
-                    feedback = "Placement failed. Tap a tracked horizontal surface to retry.";
-                    Debug.LogWarning("SQL JOIN placement: " + exception.Message, this);
+                    feedback = stage + " failed. Tap surface to retry; see device logs.";
+                    Debug.LogError(LogPrefix + "Attempt " + version + " failed at " + stage, this);
                 }
+                Debug.LogException(exception);
             }
             finally
             {
@@ -118,7 +175,11 @@ namespace ARSQLExplorer.SQLJoin
                         Destroy(visualization.gameObject);
                     }
                     RemoveAnchor(anchor);
-                    if (this != null && version == operationVersion) State = PlacementState.Scanning;
+                    if (this != null && version == operationVersion)
+                    {
+                        State = PlacementState.Scanning;
+                        Debug.Log(LogPrefix + "Attempt " + version + ": cleanup complete -> Scanning.", this);
+                    }
                 }
             }
         }
@@ -131,7 +192,11 @@ namespace ARSQLExplorer.SQLJoin
                 if (anchorManager != null && anchorManager.subsystem != null && anchorManager.subsystem.running &&
                     anchorManager.TryRemoveAnchor(anchor)) return;
             }
-            catch (Exception exception) { Debug.LogWarning("Anchor cleanup: " + exception.Message); }
+            catch (Exception exception)
+            {
+                Debug.LogWarning(LogPrefix + "Anchor cleanup failed; destroying anchor object.");
+                Debug.LogException(exception);
+            }
             if (anchor != null) Destroy(anchor.gameObject);
         }
 

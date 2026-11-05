@@ -12,6 +12,9 @@ namespace ARSQLExplorer.SQLJoin
         [SerializeField] private JoinTableView studentsTable;
         [SerializeField] private JoinTableView marksTable;
         [SerializeField] private TMP_FontAsset font;
+        [SerializeField] private Material connectionMaterialTemplate;
+        [SerializeField] private bool useMobileLayout;
+        [SerializeField] private JoinTableTheme arTableTheme;
         [SerializeField, Min(0.1f)] private float connectionDrawSeconds = 1.2f;
         [SerializeField, Min(0f)] private float resultHoldSeconds = 0.8f;
         private TextMeshProUGUI status;
@@ -107,6 +110,13 @@ namespace ARSQLExplorer.SQLJoin
             explanation.rectTransform.anchorMax = Vector2.one;
             explanation.rectTransform.offsetMin = new Vector2(40, 2);
             explanation.rectTransform.offsetMax = new Vector2(-40, -2);
+            if (useMobileLayout)
+            {
+                var mobileLayout = gameObject.AddComponent<SQLJoinMobileLayout>();
+                mobileLayout.Configure(scaler, panel.GetComponent<RectTransform>(), buttons,
+                    nextButton, showAllButton, resetButton, status, query, legend,
+                    panelRect, explanation);
+            }
             uiInitialized = true;
             UpdateStatus();
             return true;
@@ -114,6 +124,11 @@ namespace ARSQLExplorer.SQLJoin
 
         public bool BindVisualization(SQLJoinVisualization visualization)
         {
+            if (visualization != null && arTableTheme != null && !visualization.SetTheme(arTableTheme))
+            {
+                Debug.LogError("Apply the AR table theme before visualization initialization.", this);
+                return false;
+            }
             if (visualization == null || !InitializeUI() || !visualization.Initialize()) return false;
             return BindViews(visualization.Students, visualization.Marks, visualization.Result, visualization.Connections);
         }
@@ -158,8 +173,14 @@ namespace ARSQLExplorer.SQLJoin
             selectedType = type;
             playback = new JoinPlayback(JoinCalculator.Calculate(JoinDemoData.Students, JoinDemoData.Marks, type));
             string name = Names[(int)type];
-            query.text = "SELECT s.Student_ID, s.Name, m.Student_ID, m.Subject, m.Score\n"
-                + "FROM Students AS s " + name + " Marks AS m ON s.Student_ID = m.Student_ID;";
+            query.text = useMobileLayout
+                ? "SELECT s.Student_ID, s.Name,\n"
+                    + "  m.Student_ID, m.Subject, m.Score\n"
+                    + "FROM Students AS s\n"
+                    + name + " Marks AS m\n"
+                    + "  ON s.Student_ID = m.Student_ID;"
+                : "SELECT s.Student_ID, s.Name, m.Student_ID, m.Subject, m.Score\n"
+                    + "FROM Students AS s " + name + " Marks AS m ON s.Student_ID = m.Student_ID;";
             for (int i = 0; i < buttons.Length; i++)
                 buttons[i].GetComponent<Image>().color = i == (int)type
                     ? new Color(0.08f, 0.48f, 0.58f) : new Color(0.16f, 0.23f, 0.32f);
@@ -314,10 +335,27 @@ namespace ARSQLExplorer.SQLJoin
         private bool EnsureConnection()
         {
             if (connection != null) return true;
-            var shader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (shader == null) shader = Shader.Find("Unlit/Color");
-            if (shader == null) return false;
-            connectionMaterial = new Material(shader);
+            if (connectionMaterialTemplate != null)
+            {
+                if (connectionMaterialTemplate.shader == null || !connectionMaterialTemplate.shader.isSupported)
+                {
+                    Debug.LogError("JOIN connection material shader is missing or unsupported.", this);
+                    return false;
+                }
+                connectionMaterial = new Material(connectionMaterialTemplate);
+            }
+            else
+            {
+                // Existing desktop scene compatibility; AR scene assigns the material explicitly.
+                var shader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (shader == null) shader = Shader.Find("Unlit/Color");
+                if (shader == null || !shader.isSupported)
+                {
+                    Debug.LogError("JOIN connection unlit shader is missing or unsupported; assign a material.", this);
+                    return false;
+                }
+                connectionMaterial = new Material(shader);
+            }
             if (connectionMaterial.HasProperty("_BaseColor")) connectionMaterial.SetColor("_BaseColor", Matched);
             if (connectionMaterial.HasProperty("_Color")) connectionMaterial.SetColor("_Color", Matched);
             connection = new GameObject("Matching Student_ID Connection").AddComponent<LineRenderer>();

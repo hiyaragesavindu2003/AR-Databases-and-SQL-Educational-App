@@ -91,6 +91,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: ARSQLExplorer.SQLJoin.Views::ARSQLExplorer.SQLJoin.JoinTableView
   source: 0
   font: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  materialTemplate: {fileID: 2100000, guid: 998f0a2f86944554adc6be7e1768c837, type: 2}
 --- !u!1 &5020
 GameObject:
   m_ObjectHideFlags: 0
@@ -122,6 +123,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: ARSQLExplorer.SQLJoin.Views::ARSQLExplorer.SQLJoin.JoinTableView
   source: 1
   font: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  materialTemplate: {fileID: 2100000, guid: 998f0a2f86944554adc6be7e1768c837, type: 2}
 --- !u!1 &5030
 GameObject:
   m_ObjectHideFlags: 0
@@ -153,6 +155,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: ARSQLExplorer.SQLJoin.Views::ARSQLExplorer.SQLJoin.JoinTableView
   source: 2
   font: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  materialTemplate: {fileID: 2100000, guid: 998f0a2f86944554adc6be7e1768c837, type: 2}
 --- !u!1 &1020
 GameObject:
   m_ObjectHideFlags: 0
